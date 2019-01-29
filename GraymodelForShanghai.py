@@ -1,38 +1,31 @@
-from pandas import Series
-from pandas import DataFrame
 import pandas as pd
 import matplotlib.pyplot as plt
 
 
-class Gray_model:
+class GM:
     def __init__(self):
-        self.a_hat = None
+        self.dat = None
         self.x0 = None
 
     def fit(self,index, data):
-        """
-        Series is a pd.Series with index as its date.
-        :param series: pd.Series
-        :return: None
-        """
         series=pd.Series(index=index, data=data)
-        self.a_hat = self._identification_algorithm(series.values)
+        self.dat = self.__identification_algorithm(series.values)
         self.x0 = series.values[0]
 
-    def predict(self, interval):
+    def predict(self, yearnum):
         result = []
-        for i in range(interval):
-            result.append(self.__compute(i))
-        tmp = np.ones(len(result))
+        for i in range(yearnum):
+            result.append(self.__calcugray(i))
+        temp = np.ones(len(result))
         for i in range(len(result)):
             if i == 0:
-                tmp[i] = result[i]
+                temp[i] = result[i]
             else:
-                tmp[i] = result[i] - result[i - 1]
-        result = tem
+                temp[i] = result[i] - result[i - 1]
+        result = temp
         return result
 
-    def _identification_algorithm(self, series):
+    def __identification_algorithm(self, series):
         B = np.array([[1] * 2] * (len(series) - 1))
         series_sum = np.cumsum(series)
         for i in range(len(series) - 1):
@@ -45,53 +38,49 @@ class Gray_model:
         a = np.transpose(a)
         return a
 
-    def score(self, series_true, series_pred, index):
+    def score(self, series_true, series_prediction, index):
         error = np.ones(len(series_true))
         relativeError = np.ones(len(series_true))
         for i in range(len(series_true)):
-            error[i] = series_true[i] - series_pred[i]
-            relativeError[i] = error[i] / series_pred[i] * 100
-        score_record = {'GM': np.cumsum(series_pred),
+            error[i] = series_true[i] - series_prediction[i]
+            relativeError[i] = error[i] / series_prediction[i] * 100
+        score_record = {'GM': np.cumsum(series_prediction),
                         '1—AGO': np.cumsum(series_true),
-                        'Returnvalue': series_pred,
+                        'Returnvalue': series_prediction,
                         'Real_value': series_true,
                         'Error': error,
                         'RelativeError(%)': (relativeError)
                         }
-        scores = DataFrame(score_record, index=index)
+        scores = pd.DataFrame(score_record, index=index)
         return scores
 
-    def __compute(self, k):
-        return (self.x0 - self.a_hat[1] / self.a_hat[0]) * np.exp(-1 * self.a_hat[0] * k) + self.a_hat[1] / self.a_hat[
+    def __calcugray(self, k):
+        return (self.x0 - self.dat[1] / self.dat[0]) * np.exp(-1 * self.dat[0] * k) + self.dat[1] / self.dat[
             0]
 
-    def evaluate(self, series_true, series_pred):
-        scores = self.score(series_true, series_pred, np.arange(len(series_true)))
-
-        error_square = np.dot(scores, np.transpose(scores))
-        error_avg = np.mean(error_square)
+    def evaluate(self, series_true, series_prediction):
 
         S = 0
         for i in range(1, len(series_true) - 1, 1):
-            S += series_true[i] - series_true[0] + (series_pred[-1] - series_pred[0]) / 2
+            S += series_true[i] - series_true[0] + (series_prediction[-1] - series_prediction[0]) / 2
         S = np.abs(S)
 
         SK = 0
         for i in range(1, len(series_true) - 1, 1):
-            SK += series_pred[i] - series_pred[0] + (series_pred[-1] - series_pred[0]) / 2
+            SK += series_prediction[i] - series_prediction[0] + (series_prediction[-1] - series_prediction[0]) / 2
         SK = np.abs(SK)
 
         S_Sub = 0
         for i in range(1, len(series_true) - 1, 1):
-            S_Sub += series_true[i] - series_true[0] - (series_pred[i] - series_pred[0]) + ((series_true[-1] -
+            S_Sub += series_true[i] - series_true[0] - (series_prediction[i] - series_prediction[0]) + ((series_true[-1] -
                                                                                              series_true[0]) - (
-                                                                                            series_pred[i] -
-                                                                                            series_pred[0])) / 2
+                                                                                            series_prediction[i] -
+                                                                                            series_prediction[0])) / 2
         S_Sub = np.abs(S_Sub)
 
         acc = (1 + S + SK) / (1 + S + SK + S_Sub)
 
-        level = 0
+        level = -1
         if acc >= 0.9:
             level = 1
         elif acc >= 0.8:
@@ -102,10 +91,10 @@ class Gray_model:
             level = 4
         return 1 - acc, level
 
-    def plot(self, series_true, series_pred, index,name):
+    def plot(self, series_true, series_prediction, index,name):
         df = pd.DataFrame(index=index)
         df['Real'] = series_true
-        df['Forcast'] = series_pred
+        df['Prediction'] = series_prediction
         plt.figure()
         df.plot(figsize=(7, 5))
         plt.xlabel('year')
@@ -123,15 +112,15 @@ def getscore(gdp,water,air,struct,people,k):
     struct=(struct-min(struct))/(max(struct)-min(struct))
     people=(people-min(people))/(max(people)-min(people))
     return (1/(1+k))*(k*(waterweight*water+air*airweight)+(gdp*averageGDP+struct*structure+people*peopledense))
-shanghai=pd.read_excel('./data/huidu.xlsx',index_col=0)#07-14
+shanghai=pd.read_excel('./data/huidu.xlsx',index_col=0)
 dataset=shanghai.values
-gdpmodel=Gray_model()
-airmodel=Gray_model()
-watermodel=Gray_model()
-strucmodel=Gray_model()
-densemodel=Gray_model()
-predictyear=2007#初始年份
-predictnum=30#预测年度
+gdpmodel=GM()
+airmodel=GM()
+watermodel=GM()
+strucmodel=GM()
+densemodel=GM()
+predictyear=2007
+predictnum=30
 year=dataset[:,0]
 gdpmodel.fit(index=year,data=dataset[:,1])
 valyear=[i for i in range(2007,2015)]
